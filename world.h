@@ -11,11 +11,11 @@ typedef struct {
   size_t width;
   size_t height;
   size_t *data;
-} map;
+} map_t;
 
-map map_new(size_t width, size_t height);
-void map_free(map m);
-void map_set(map m, size_t x, size_t y, bool value);
-bool map_get(map m, size_t x, size_t y);
-void map_clear(map m);
-void map_tick(map m);
+map_t map_new(size_t width, size_t height);
+void map_free(map_t m);
+void map_set(map_t m, size_t x, size_t y, bool value);
+bool map_get(map_t m, size_t x, size_t y);
+void map_clear(map_t m);
+void map_tick(map_t m);
