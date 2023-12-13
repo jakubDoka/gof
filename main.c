@@ -15,8 +15,7 @@ int main(int n, char **args) {
     ticks = atoi(args[3]);
   }
 
-  // Here is Johny
-  map m = map_new(width, height);
+  map_t m = map_new(width, height);
 
   for (size_t i = 0; i < ticks; i++) {
     map_tick(m);
