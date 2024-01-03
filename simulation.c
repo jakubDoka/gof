@@ -49,14 +49,5 @@ void sim_next(sim_t *s) {
 
 void sim_draw(sim_t s) {
     map_t m = s.maps[s.index];
-
-    for (size_t y = 0; y < m.height; y++) {
-        for (size_t x = 0; x < m.width; x++) {
-            char c = map_get(m, x, y) ? '#' : '.';
-            printf("%c", c);
-        }
-        printf("\n");
-    }
-
-    printf("\n");
+    map_draw(m);
 }

@@ -1,17 +1,19 @@
-# gol - game of life
-.POSIX:
+CC = gcc
+CFLAGS = -Wall -g -std=c99
 
-include config.mk
+all: main
 
-SRC = main.c world.c
-OBJ = $(SRC:.c=.o)
+main: main.o map.o simulation.o
+	$(CC) $(CFLAGS) main.o map.o simulation.o wincon/pdcurses.a -o main
 
-all: gof
+main.o: main.c map.h simulation.h
+	$(CC) $(CFLAGS) -c main.c -o main.o
 
-gof.o: world.h
+map.o: map.c map.h
+	$(CC) $(CFLAGS) -c map.c -o map.o
 
-gof: $(OBJ)
-	$(CC) -o $@ $(OBJ) $(STLDFLAGS)
+simulation.o: simulation.c simulation.h curses.h
+	$(CC) $(CFLAGS) -c simulation.c -o simulation.o
 
-.PHONY: all
-
+clean:
+	del main main.o map.o simulation.o main.exe
