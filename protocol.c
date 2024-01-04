@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -29,8 +30,14 @@ void response_free(response_t response) {
         // no-op
         break;
     case PROTO_LOAD_WORLD:
-        map_free(response.data.load_world.world);
+        // supposed to be moved
         break;
+    case PROTO_ERROR:
+        if (response.data.error.message == NULL) {
+            return;
+        }
+
+        free(response.data.error.message);
     }
 }
 
@@ -86,39 +93,62 @@ size_t encode_request(char **buffer, request_t in) {
     size_t buffer_size = encode_request_len(in) + 4;
     *buffer = realloc(*buffer, buffer_size);
 
-    encode_len(buffer, buffer_size - 4);
+    char *cursor = *buffer;
+    encode_len(&cursor, buffer_size - 4);
 
-    *((*buffer)++) = (char)(in.type);
+    *((cursor)++) = (char)(in.type);
     switch (in.type) {
     case PROTO_LIST_WORLDS:
         break;
     case PROTO_SAVE_WORLD:
-        encode_string(buffer, in.data.save_world.name);
-        encode_len(buffer, in.data.save_world.world->width);
-        encode_len(buffer, in.data.save_world.world->height);
-        memcpy(*buffer, in.data.save_world.world->data,
+        encode_string(&cursor, in.data.save_world.name);
+        encode_len(&cursor, in.data.save_world.world->width);
+        encode_len(&cursor, in.data.save_world.world->height);
+        memcpy(cursor, in.data.save_world.world->data,
                map_alloc_size(in.data.save_world.world->width,
                               in.data.save_world.world->height));
         break;
     case PROTO_LOAD_WORLD:
         encode_string(buffer, in.data.load_world.name);
         break;
+    default:
+        printf("Invalid request type: %d\n", in.type);
+        exit(1);
     }
 
     return buffer_size;
 }
 
-size_t decode_len(char *buffer) { return ntohl(*(uint32_t *)buffer); }
-
-bool decode_list_worlds(char *buffer, size_t len, response_t *out) {
-    if (len < 4) {
-        return true;
+size_t decode_len(char **buffer, size_t *len) {
+    if (*len < 4) {
+        return -1;
     }
 
-    out->data.list_worlds.count = decode_len(buffer);
-    buffer += 4;
-    len -= 4;
+    size_t decoded_len = ntohl(*(uint32_t *)*buffer);
+    *buffer += 4;
+    *len -= 4;
 
+    return decoded_len;
+}
+
+char *decode_string(char **buffer, size_t *len) {
+    size_t decoded_len = decode_len(buffer, len);
+
+    if (*len < decoded_len) {
+        return NULL;
+    }
+
+    char *decoded_string = malloc(decoded_len + 1);
+    memcpy(decoded_string, *buffer, decoded_len);
+    decoded_string[decoded_len] = '\0';
+    *buffer += decoded_len;
+    *len -= decoded_len;
+
+    return decoded_string;
+}
+
+bool decode_list_worlds(char *buffer, size_t len, response_t *out) {
+    out->data.list_worlds.count = decode_len(&buffer, &len);
     if (out->data.list_worlds.count > MAP_LIST_LIMIT) {
         return true;
     }
@@ -127,40 +157,18 @@ bool decode_list_worlds(char *buffer, size_t len, response_t *out) {
         malloc(sizeof(char *) * out->data.list_worlds.count);
 
     for (size_t i = 0; i < out->data.list_worlds.count; i++) {
-        if (len < 4) {
+        out->data.list_worlds.names[i] = decode_string(&buffer, &len);
+        if (out->data.list_worlds.names[i] == NULL) {
             return true;
         }
-
-        size_t name_len = decode_len(buffer);
-        buffer += 4;
-        len -= 4;
-
-        if (len < name_len) {
-            return true;
-        }
-
-        out->data.list_worlds.names[i] = malloc(name_len + 1);
-        memcpy(out->data.list_worlds.names[i], buffer, name_len);
-        out->data.list_worlds.names[i][name_len] = '\0';
-        buffer += name_len;
-        len -= name_len;
     }
 
     return false;
 }
 
 bool decode_world_load(char *buffer, size_t len, map_t *out) {
-    if (len < 8) {
-        return true;
-    }
-
-    out->width = decode_len(buffer);
-    buffer += 4;
-    len -= 4;
-
-    out->height = decode_len(buffer);
-    buffer += 4;
-    len -= 4;
+    out->width = decode_len(&buffer, &len);
+    out->height = decode_len(&buffer, &len);
 
     size_t map_size = map_alloc_size(out->width, out->height);
     if (len < map_size) {
@@ -188,6 +196,12 @@ bool decode_response(char *buffer, size_t len, response_t *out) {
         return false;
     case PROTO_LOAD_WORLD:
         return decode_world_load(buffer, len, &out->data.load_world.world);
+    case PROTO_ERROR:
+        out->data.error.message = decode_string(&buffer, &len);
+        if (out->data.error.message == NULL) {
+            return true;
+        }
+        return false;
     default:
         return true;
     }
@@ -197,22 +211,22 @@ client_send_result_t client_send(client_t *client, request_t message,
                                  response_t *out) {
     size_t len = encode_request(&client->buffer, message);
 
-    if (send(client->socket, client->buffer, len, 0) < 0) {
+    if (write_all(client->socket, client->buffer, len) < 0) {
         return CLIENT_SEND_SEND;
     }
 
     char len_buffer[4];
-    if (read(client->socket, len_buffer, 4) < 0) {
+    if (read_all(client->socket, len_buffer, 4) < 0) {
         return CLIENT_SEND_READ;
     }
 
-    len = decode_len(client->buffer);
+    len = ntohl(*(uint32_t *)len_buffer);
     if (len > PACKET_SIZE_LIMIT) {
         return CLIENT_SEND_TOO_BIG;
     }
 
     client->buffer = realloc(client->buffer, len);
-    if (read(client->socket, client->buffer, len) < 0) {
+    if (read_all(client->socket, client->buffer, len) < 0) {
         return CLIENT_SEND_READ;
     }
 

@@ -11,12 +11,23 @@
 #define REQUEST_SIZE_LIMIT 1024 * 1024
 
 static pthread_mutex_t fs_mutex;
+static __thread char const *reported_error = NULL;
+
+void report_error(char const *msg) {
+    printf("Error: %s\n", msg);
+    reported_error = msg;
+}
+void report_ise(char const *msg) {
+    printf("Internal server error: %s\n", msg);
+    reported_error = "Internal server error";
+}
 
 bool handle_list_worlds(char **buffer, size_t *len) {
     *len = 0;
 
-    DIR *dir = opendir("worlds");
+    DIR *dir = opendir(".");
     if (dir == NULL) {
+        report_ise("Error opening directory");
         return true;
     }
 
@@ -27,37 +38,135 @@ bool handle_list_worlds(char **buffer, size_t *len) {
             continue;
         }
 
-        *len += strlen(entry->d_name) + 4;
+        char *ext = strchr(entry->d_name, '.');
+        if (!ext || strcmp(ext, ".world") != 0) {
+            continue;
+        }
+
+        *len += (ext - entry->d_name) + 4;
         count++;
     }
 
-    closedir(dir);
-    *buffer = realloc(*buffer, *len + 4);
+    *len += 4;
 
-    dir = opendir("worlds");
+    closedir(dir);
+    *buffer = realloc(*buffer, *len);
+
+    dir = opendir(".");
     if (dir == NULL) {
+        report_ise("Error opening directory");
         return true;
     }
+
+    char *cursor = *buffer;
+    *((uint32_t *)(cursor)) = htonl(count);
+    cursor += 4;
 
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type != DT_REG) {
             continue;
         }
 
-        size_t len = strlen(entry->d_name);
+        char *ext = strchr(entry->d_name, '.');
+        if (!ext || strcmp(ext, ".world") != 0) {
+            continue;
+        }
+        size_t len = ext - entry->d_name;
 
-        *((uint32_t *)(*buffer)) = htonl(len);
-        *buffer += 4;
-        memcpy(*buffer, entry->d_name, len);
-        *buffer += strlen(entry->d_name) + 1;
+        *((uint32_t *)(cursor)) = htonl(len);
+        cursor += 4;
+        memcpy(cursor, entry->d_name, len);
+        cursor += len;
     }
 
     return false;
 }
 
-bool handle_save_world(char **buffer, size_t *len) { return false; }
+char *decode_world_name(char **cursor, size_t *len) {
+    if (*len < 4) {
+        report_error("Error reading name length");
+        return NULL;
+    }
 
-bool handle_load_world(char **buffer, size_t *len) { return false; }
+    size_t name_len = ntohl(*(uint32_t *)(cursor));
+    *cursor += 4;
+    *len -= 4;
+
+    if (*len < name_len) {
+        report_error("Error reading name");
+        return NULL;
+    }
+
+    for (size_t i = 0; i < name_len; i++) {
+        if (!is_valid_world_name_char(cursor[0][i])) {
+            free(cursor);
+            report_error("Invalid character in name");
+            return NULL;
+        }
+    }
+
+    size_t world_len = strlen(".world");
+    char *name = malloc(name_len + world_len + 1);
+    memcpy(name, *cursor, name_len);
+    memcpy(name + name_len, ".world", world_len + 1);
+    *cursor += name_len;
+    *len -= name_len;
+
+    return name;
+}
+
+bool handle_save_world(char **buffer, size_t *len) {
+    char *cursor = *buffer;
+    char *name = decode_world_name(&cursor, len);
+
+    FILE *file = fopen(name, "w");
+    free(name);
+    if (file == NULL) {
+        report_ise("Error opening file");
+        return true;
+    }
+
+    if (write_all(fileno(file), cursor, *len) < 0) {
+        fclose(file);
+        report_ise("Error writing to file");
+        return true;
+    }
+
+    fclose(file);
+    *len = 0;
+
+    return false;
+}
+
+bool handle_load_world(char **buffer, size_t *len) {
+    char *cursor = *buffer;
+    char *name = decode_world_name(&cursor, len);
+
+    FILE *file = fopen(name, "r");
+    free(name);
+    if (file == NULL) {
+        report_error("World does not exist");
+        return true;
+    }
+
+    if (fseek(file, 0, SEEK_END) < 0 || (*len = ftell(file)) < 0 ||
+        fseek(file, 0, SEEK_SET) < 0) {
+        fclose(file);
+        report_ise("Error reading file");
+        return true;
+    }
+
+    *buffer = realloc(*buffer, *len);
+    if (read_all(fileno(file), *buffer, *len) < 0) {
+        fclose(file);
+        report_ise("Error reading file");
+        return true;
+    }
+
+    fclose(file);
+
+    return false;
+}
 
 bool handle_request(char **buffer, size_t *len) {
     if (*len < 1) {
@@ -82,7 +191,7 @@ void *handle_client(void *arg) {
 
     for (;;) {
         char len_buffer[4];
-        if (read(socket, len_buffer, 4) < 0) {
+        if (read_all(socket, len_buffer, 4) < 0) {
             printf("Error reading from socket.\n");
             break;
         }
@@ -94,7 +203,7 @@ void *handle_client(void *arg) {
         }
         buffer = realloc(buffer, len);
 
-        if (read(socket, buffer, len) < 0) {
+        if (read_all(socket, buffer, len) < 0) {
             printf("Error reading from socket.\n");
             break;
         }
@@ -104,22 +213,26 @@ void *handle_client(void *arg) {
         pthread_mutex_unlock(&fs_mutex);
         if (res) {
             printf("Error handling request.\n");
-            break;
+            len = strlen(reported_error) + 1;
+            buffer = realloc(buffer, len);
+            memcpy(buffer, reported_error, len);
+            reported_error = NULL;
         }
 
         size_t send_len = htonl(len);
-        if (write(socket, &send_len, 4) < 0) {
+        if (write_all(socket, (char *)&send_len, 4) < 0) {
             printf("Error writing to socket.\n");
             break;
         }
 
-        if (write(socket, buffer, len) < 0) {
+        if (write_all(socket, buffer, len) < 0) {
             printf("Error writing to socket.\n");
             break;
         }
     }
 
     close(socket);
+    free(buffer);
 
     return NULL;
 }
