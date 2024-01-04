@@ -1,26 +1,15 @@
+
 #include "simulation.h"
 #include <stdlib.h>
 #include "curses.h"
+#include "windows.h"
 #include <time.h>
 
 #define MAX_WIDTH 100
 #define MAX_HEIGHT 50
 
-int main(int n, char **args) {
-    srand(time(NULL));
-    size_t width = 0;
-    size_t height = 0;
-    size_t ticks = 0;
+map_t map_creation(size_t width, size_t height) {
     char input[3];
-
-    initscr();
-    resize_term(MAX_HEIGHT, MAX_WIDTH);
-    refresh();
-
-    if (n >= 3) {
-        width = atoi(args[1]) > 0 ? atoi(args[1]) : 0;
-        height = atoi(args[2]) > 0 ? atoi(args[2]) : 0;
-    }
 
     while (width == 0 || width >= MAX_WIDTH) {
         printw("Set map width: ");
@@ -36,24 +25,13 @@ int main(int n, char **args) {
         clear();
     }
 
-    if (n >= 4) {
-        ticks = atoi(args[3]) > 0 ? atoi(args[3]) : 0;
-    }
+    return map_new(width, height);
+}
 
-    while (ticks == 0) {
-        printw("Set number of ticks: ");
-        wgetnstr(stdscr, input, 2);
-        ticks = atoi(input) > 0 ? atoi(input) : 0;
-        clear();
-    }
-
-    map_t m = map_new(width, height);
-    map_clear(m);
-
+map_t map_manipulation(map_t m) {
     int ch = '\0';
     size_t x = 0;
     size_t y = 0;
-    keypad(stdscr, TRUE);
 
     while(ch != '\n') {
         clear();
@@ -67,7 +45,7 @@ int main(int n, char **args) {
             case 'Q':
                 map_free(m);
                 endwin();
-                return 0;
+                exit(0);
             case 'r':
             case 'R':
                 map_gen_rnd(m);
@@ -97,6 +75,7 @@ int main(int n, char **args) {
                 free(name_r);
                 if (new_m.width >= MAX_WIDTH || new_m.height >= MAX_HEIGHT) {
                     map_free(new_m);
+                } else if (memcmp(&new_m, &MAP_NULL, sizeof(map_t)) == 0) {
                 } else {
                     map_free(m);
                     m = new_m;
@@ -129,9 +108,99 @@ int main(int n, char **args) {
                 break;
         }
     }
+    clear();
+    return m;
+}
 
-    sim_t s = sim_new(width, height, ticks, m);
+sim_t sim_creation(map_t m, size_t ticks) {
+    char input[3];
+
+    while (ticks == 0) {
+        printw("Set number of ticks: ");
+        wgetnstr(stdscr, input, 2);
+        ticks = atoi(input) > 0 ? atoi(input) : 0;
+        clear();
+    }
+
+    return sim_new(m, ticks);
+}
+
+void sim_run(sim_t s) {
+    int ch = '\0';
+    bool is_running = true;
+    bool is_reverse = false;
+
+    timeout(0);
+    while(ch != 'q' && ch != 'Q') {
+        ch = getch();
+
+        switch (ch) {
+            case 'p':
+            case 'P':
+                is_running = !is_running;
+                break;
+            case 'r':
+            case 'R':
+                is_reverse = !is_reverse;
+                break;
+            case 'n':
+            case 'N':
+                clear();
+                sim_free(s);
+                timeout(-1);
+                map_t m = map_creation(0, 0);
+                map_clear(m);
+                m = map_manipulation(m);
+                s = sim_creation(m, 0);
+                timeout(0);
+                break;
+        }
+
+        if (is_running) {
+            if (s.index != s.ticks && !is_reverse) {
+                sim_next(&s);
+            } else if (s.index != 0 && is_reverse) {
+                s.index--;
+            }
+        }
+
+        clear();
+        printw("%d / %d\n", s.index, s.ticks);
+        sim_draw(s);
+        refresh();
+        Sleep(200);
+    }
+
     sim_free(s);
+}
+
+int main(int n, char **args) {
+    srand(time(NULL));
+    size_t width = 0;
+    size_t height = 0;
+    size_t ticks = 0;
+
+    initscr();
+    keypad(stdscr, TRUE);
+    resize_term(MAX_HEIGHT, MAX_WIDTH);
+    refresh();
+
+    if (n >= 3) {
+        width = atoi(args[1]) > 0 ? atoi(args[1]) : 0;
+        height = atoi(args[2]) > 0 ? atoi(args[2]) : 0;
+    }
+
+    map_t m = map_creation(width, height);
+    map_clear(m);
+    m = map_manipulation(m);
+
+    if (n >= 4) {
+        ticks = atoi(args[3]) > 0 ? atoi(args[3]) : 0;
+    }
+
+    sim_t s = sim_creation(m, ticks);
+    sim_run(s);
+
     endwin();
     return 0;
 }

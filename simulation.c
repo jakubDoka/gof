@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-sim_t sim_new(size_t width, size_t height, size_t ticks, map_t start) {
+sim_t sim_new( map_t start, size_t ticks) {
     map_t *maps = malloc(sizeof(map_t) * (ticks + 1));
 
     for (int i = 0; i <= ticks; ++i) {
-        maps[i] = i == 0 ? start : map_new(width, height);
+        maps[i] = i == 0 ? start : map_new(start.width, start.height);
     }
 
     return (sim_t) { 0, ticks, maps};

@@ -6,7 +6,7 @@ typedef struct {
     map_t *maps;
 } sim_t;
 
-sim_t sim_new(size_t width, size_t height, size_t ticks, map_t start);
+sim_t sim_new(map_t start, size_t ticks);
 void sim_free(sim_t s);
 void sim_next(sim_t *s);
 void sim_draw(sim_t s);

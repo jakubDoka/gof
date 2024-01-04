@@ -68,7 +68,7 @@ map_t map_load(char* fn) {
 
     if (file == NULL) {
         perror("Error opening file!");
-        return (map_t) {0};
+        return MAP_NULL;
     }
 
     size_t width;
@@ -77,7 +77,7 @@ map_t map_load(char* fn) {
 
     if (fscanf(file, "%zu %zu\n", &width, &height) != 2) {
         perror("Error reading dimensions from file!");
-        return (map_t) {0};
+        return MAP_NULL;
     }
 
     map_t m = map_new(width, height);
@@ -87,7 +87,7 @@ map_t map_load(char* fn) {
             if (fscanf(file, "%zu\n", &value) != 1) {
                 perror("Error reading cells from file!");
                 map_free(m);
-                return (map_t) {0};
+                return MAP_NULL;
             }
             map_set(m, j, i, value == 1);
         }
