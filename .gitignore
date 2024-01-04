@@ -1,0 +1,4 @@
+ncurses
+*.o
+*.hcg
+client server
