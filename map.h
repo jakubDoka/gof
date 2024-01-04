@@ -25,3 +25,4 @@ void map_save(map_t m, char *fn);
 map_t map_load(char *fn);
 void map_draw(map_t m);
 void map_clear(map_t m);
+size_t map_alloc_size(size_t width, size_t height);

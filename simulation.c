@@ -12,11 +12,16 @@ sim_t sim_new(map_t start, size_t ticks) {
 }
 
 void sim_free(sim_t s) {
+    if (s.maps == NULL) {
+        return;
+    }
+
     for (int i = 0; i <= s.ticks; ++i) {
         map_free(s.maps[i]);
     }
 
     free(s.maps);
+    s.maps = NULL;
 }
 
 void sim_next(sim_t *s) {

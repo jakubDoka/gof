@@ -6,16 +6,23 @@
 
 static inline size_t max(size_t a, size_t b) { return a > b ? a : b; }
 
-size_t alloc_size(size_t width, size_t height) {
-    return width * height * sizeof(size_t) / MAP_SEGMENT_SIZE + 1;
+size_t map_alloc_size(size_t width, size_t height) {
+    return width * height * sizeof(size_t) / MAP_SEGMENT_SIZE + sizeof(size_t);
 }
 
 map_t map_new(size_t width, size_t height) {
-    size_t *data = malloc(alloc_size(width, height));
+    size_t *data = malloc(map_alloc_size(width, height));
     return (map_t){width, height, data};
 }
 
-void map_free(map_t m) { free(m.data); }
+void map_free(map_t m) {
+    if (m.data == NULL) {
+        return;
+    }
+
+    free(m.data);
+    m.data = NULL;
+}
 
 void map_set(map_t m, size_t x, size_t y, bool value) {
     size_t index = MAP_PROJECT(x, y, m.width);
@@ -104,4 +111,6 @@ void map_draw(map_t m) {
     }
 }
 
-void map_clear(map_t m) { memset(m.data, 0, alloc_size(m.width, m.height)); }
+void map_clear(map_t m) {
+    memset(m.data, 0, map_alloc_size(m.width, m.height));
+}
