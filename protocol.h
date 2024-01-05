@@ -1,5 +1,8 @@
 #include "map.h"
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 typedef enum {
@@ -87,7 +90,7 @@ client_send_result_t client_send(client_t *client, request_t message,
                                  response_t *out);
 void client_free(client_t client);
 
-static inline int write_all(int fd, char *buf, size_t count) {
+static inline int write_all(int fd, size_t count, const char buf[count]) {
     size_t written = 0;
     while (written < count) {
         ssize_t n = write(fd, buf + written, count - written);
@@ -99,7 +102,7 @@ static inline int write_all(int fd, char *buf, size_t count) {
     return 0;
 }
 
-static inline int read_all(int fd, char *buf, size_t count) {
+static inline int read_all(int fd, size_t count, char buf[count]) {
     size_t red = 0;
     while (red < count) {
         ssize_t n = read(fd, buf + red, count - red);

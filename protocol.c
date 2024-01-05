@@ -41,25 +41,27 @@ void response_free(response_t response) {
     }
 }
 
-client_new_result_t client_new(client_t *out, char *host, uint16_t post) {
-    out->buffer = malloc(0);
-
-    if ((out->socket = socket(AF_INET, SOCK_STREAM, 0) < 0)) {
+client_new_result_t client_new(client_t *out, char *host, uint16_t port) {
+    if ((out->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         return CLIENT_NEW_SOCKET_CREATION;
     }
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(post);
+    addr.sin_port = htons(port);
 
     if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
+        close(out->socket);
         return CLIENT_NEW_INVALID_IP;
     }
 
-    if (connect(out->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    int status = connect(out->socket, (struct sockaddr *)&addr, sizeof(addr));
+    if (status < 0) {
+        close(out->socket);
         return CLIENT_NEW_CONNECTION;
     }
 
+    out->buffer = malloc(0);
     return CLIENT_NEW_OK;
 }
 
@@ -96,7 +98,7 @@ size_t encode_request(char **buffer, request_t in) {
     char *cursor = *buffer;
     encode_len(&cursor, buffer_size - 4);
 
-    *((cursor)++) = (char)(in.type);
+    *(cursor++) = (char)(in.type);
     switch (in.type) {
     case PROTO_LIST_WORLDS:
         break;
@@ -109,7 +111,7 @@ size_t encode_request(char **buffer, request_t in) {
                               in.data.save_world.world->height));
         break;
     case PROTO_LOAD_WORLD:
-        encode_string(buffer, in.data.load_world.name);
+        encode_string(&cursor, in.data.load_world.name);
         break;
     default:
         printf("Invalid request type: %d\n", in.type);
@@ -211,12 +213,14 @@ client_send_result_t client_send(client_t *client, request_t message,
                                  response_t *out) {
     size_t len = encode_request(&client->buffer, message);
 
-    if (write_all(client->socket, client->buffer, len) < 0) {
+    if (write_all(client->socket, len, client->buffer) < 0) {
         return CLIENT_SEND_SEND;
     }
 
+    printf("Sent %zu bytes\n", len);
+
     char len_buffer[4];
-    if (read_all(client->socket, len_buffer, 4) < 0) {
+    if (read_all(client->socket, 4, len_buffer) < 0) {
         return CLIENT_SEND_READ;
     }
 
@@ -226,7 +230,7 @@ client_send_result_t client_send(client_t *client, request_t message,
     }
 
     client->buffer = realloc(client->buffer, len);
-    if (read_all(client->socket, client->buffer, len) < 0) {
+    if (read_all(client->socket, len, client->buffer) < 0) {
         return CLIENT_SEND_READ;
     }
 

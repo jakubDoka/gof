@@ -51,8 +51,3 @@ void sim_next(sim_t *s) {
         }
     }
 }
-
-void sim_draw(sim_t s) {
-    map_t m = s.maps[s.index];
-    map_draw(m);
-}

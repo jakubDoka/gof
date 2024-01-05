@@ -1,5 +1,4 @@
 #include "map.h"
-#include "curses.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,16 +98,6 @@ map_t map_load(char *fn) {
 
     fclose(file);
     return m;
-}
-
-void map_draw(map_t m) {
-    for (size_t y = 0; y < m.height; y++) {
-        for (size_t x = 0; x < m.width; x++) {
-            char c = map_get(m, x, y) ? '#' : '.';
-            printw("%c", c);
-        }
-        printw("\n");
-    }
 }
 
 void map_clear(map_t m) {

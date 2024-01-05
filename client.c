@@ -10,6 +10,21 @@
 #define MAX_WIDTH 100
 #define MAX_HEIGHT 50
 
+void map_draw(map_t m) {
+    for (size_t y = 0; y < m.height; y++) {
+        for (size_t x = 0; x < m.width; x++) {
+            char c = map_get(m, x, y) ? '#' : '.';
+            printw("%c", c);
+        }
+        printw("\n");
+    }
+}
+
+void sim_draw(sim_t s) {
+    map_t m = s.maps[s.index];
+    map_draw(m);
+}
+
 map_t map_creation(size_t width, size_t height) {
     char input[3];
 
