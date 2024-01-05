@@ -1,4 +1,4 @@
-#include "protocol.h"
+#include "net_client.h"
 #include <assert.h>
 #include <stdio.h>
 

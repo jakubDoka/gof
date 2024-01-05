@@ -5,6 +5,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#define PACKET_SIZE_LIMIT 1024 * 1024
+#define MAP_LIST_LIMIT 1000
+
 typedef enum {
     CLIENT_NEW_OK,
     CLIENT_NEW_SOCKET_CREATION,
@@ -59,6 +62,8 @@ typedef struct {
     } data;
 } request_t;
 
+size_t request_encode(char **buffer, request_t in);
+
 // all fields except world are owned, call response_free for cleanup
 typedef struct {
     message_type_t type;
@@ -78,17 +83,8 @@ typedef struct {
     } data;
 } response_t;
 
+bool response_decode(char *buffer, size_t len, response_t *out);
 void response_free(response_t response);
-
-typedef struct {
-    int socket;
-    char *buffer;
-} client_t;
-
-client_new_result_t client_new(client_t *out, char *host, uint16_t port);
-client_send_result_t client_send(client_t *client, request_t message,
-                                 response_t *out);
-void client_free(client_t client);
 
 static inline int write_all(int fd, size_t count, const char buf[count]) {
     size_t written = 0;

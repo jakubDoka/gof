@@ -8,9 +8,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define PACKET_SIZE_LIMIT 1024 * 1024
-#define MAP_LIST_LIMIT 1000
-
 void response_free(response_t response) {
     switch (response.type) {
     case PROTO_LIST_WORLDS:
@@ -41,30 +38,6 @@ void response_free(response_t response) {
     }
 }
 
-client_new_result_t client_new(client_t *out, char *host, uint16_t port) {
-    if ((out->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        return CLIENT_NEW_SOCKET_CREATION;
-    }
-
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-
-    if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
-        close(out->socket);
-        return CLIENT_NEW_INVALID_IP;
-    }
-
-    int status = connect(out->socket, (struct sockaddr *)&addr, sizeof(addr));
-    if (status < 0) {
-        close(out->socket);
-        return CLIENT_NEW_CONNECTION;
-    }
-
-    out->buffer = malloc(0);
-    return CLIENT_NEW_OK;
-}
-
 size_t encode_request_len(request_t in) {
     switch (in.type) {
     case PROTO_LIST_WORLDS:
@@ -91,7 +64,7 @@ void encode_string(char **buffer, char *in) {
     *buffer += len;
 }
 
-size_t encode_request(char **buffer, request_t in) {
+size_t request_encode(char **buffer, request_t in) {
     size_t buffer_size = encode_request_len(in) + 4;
     *buffer = realloc(*buffer, buffer_size);
 
@@ -183,7 +156,7 @@ bool decode_world_load(char *buffer, size_t len, map_t *out) {
     return false;
 }
 
-bool decode_response(char *buffer, size_t len, response_t *out) {
+bool response_decode(char *buffer, size_t len, response_t *out) {
     if (len < 1) {
         return true;
     }
@@ -207,47 +180,4 @@ bool decode_response(char *buffer, size_t len, response_t *out) {
     default:
         return true;
     }
-}
-
-client_send_result_t client_send(client_t *client, request_t message,
-                                 response_t *out) {
-    size_t len = encode_request(&client->buffer, message);
-
-    if (write_all(client->socket, len, client->buffer) < 0) {
-        return CLIENT_SEND_SEND;
-    }
-
-    printf("Sent %zu bytes\n", len);
-
-    char len_buffer[4];
-    if (read_all(client->socket, 4, len_buffer) < 0) {
-        return CLIENT_SEND_READ;
-    }
-
-    len = ntohl(*(uint32_t *)len_buffer);
-    if (len > PACKET_SIZE_LIMIT) {
-        return CLIENT_SEND_TOO_BIG;
-    }
-
-    client->buffer = realloc(client->buffer, len);
-    if (read_all(client->socket, len, client->buffer) < 0) {
-        return CLIENT_SEND_READ;
-    }
-
-    if (decode_response(client->buffer, len, out)) {
-        return CLIENT_SEND_DECODE;
-    }
-
-    return CLIENT_SEND_OK;
-}
-
-void client_free(client_t client) {
-    if (client.socket == -1) {
-        return;
-    }
-
-    close(client.socket);
-    client.socket = -1;
-    free(client.buffer);
-    client.buffer = NULL;
 }
