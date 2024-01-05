@@ -3,7 +3,7 @@
 #include "simulation.h"
 #include <stdlib.h>
 #include <string.h>
-
+#include "protocol.h"
 #include <time.h>
 #include <unistd.h>
 
@@ -37,7 +37,7 @@ map_t map_manipulation(map_t m) {
 
     while (ch != '\n') {
         clear();
-        map_draw(m);
+        map_draw(&m);
         move(y, x);
         refresh();
         ch = getch();
@@ -50,11 +50,11 @@ map_t map_manipulation(map_t m) {
             exit(0);
         case 'r':
         case 'R':
-            map_gen_rnd(m);
+            map_gen_rnd(&m);
             break;
         case 'c':
         case 'C':
-            map_clear(m);
+            map_clear(&m);
             break;
         case 'u':
         case 'U':
@@ -63,7 +63,7 @@ map_t map_manipulation(map_t m) {
             refresh();
             char name_u[100];
             getstr(name_u);
-            map_save(m, name_u);
+            map_save(&m, name_u);
             break;
         case 'l':
         case 'L':
@@ -104,7 +104,7 @@ map_t map_manipulation(map_t m) {
             x += x == m.width - 1 ? 0 : 1;
             break;
         case ' ':
-            map_set(m, x, y, !map_get(m, x, y));
+            map_set(&m, x, y, !map_get(&m, x, y));
             break;
         }
     }
@@ -149,7 +149,7 @@ void sim_run(sim_t s) {
             sim_free(s);
             timeout(-1);
             map_t m = map_creation(0, 0);
-            map_clear(m);
+            map_clear(&m);
             m = map_manipulation(m);
             s = sim_creation(m, 0);
             timeout(0);
@@ -166,7 +166,7 @@ void sim_run(sim_t s) {
 
         clear();
         printw("%zu / %zu\n", s.index, s.ticks);
-        sim_draw(s);
+        sim_draw(&s);
         refresh();
         usleep(200 * 1000);
     }
@@ -189,7 +189,7 @@ int main(int n, char **args) {
     }
 
     map_t m = map_creation(width, height);
-    map_clear(m);
+    map_clear(&m);
     m = map_manipulation(m);
 
     if (n >= 4) {
