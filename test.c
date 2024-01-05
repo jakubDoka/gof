@@ -26,6 +26,7 @@ int main(int n, char **args) {
     }
 
     map_t m = map_new(10, 10);
+    map_clear(m);
 
     for (size_t i = 0; i < 10; i++) {
         map_set(m, i, i, true);
@@ -40,6 +41,7 @@ int main(int n, char **args) {
             },
     };
     response_t response = run_test(&client, request, PROTO_SAVE_WORLD);
+    response_free(response);
 
     request = (request_t){
         .type = PROTO_LOAD_WORLD,
@@ -58,6 +60,8 @@ int main(int n, char **args) {
                    map_get(m, i, j));
         }
     }
+    response_free(response);
+    map_free(response.data.load_world.world);
 
     request = (request_t){
         .type = PROTO_LIST_WORLDS,
@@ -66,6 +70,10 @@ int main(int n, char **args) {
 
     assert(response.data.list_worlds.count == 1);
     assert(strcmp(response.data.list_worlds.names[0], "test") == 0);
+    response_free(response);
+
+    map_free(m);
+    client_free(client);
 
     printf("Test passed\n");
 
