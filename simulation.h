@@ -9,4 +9,3 @@ typedef struct {
 sim_t sim_new(map_t start, size_t ticks);
 void sim_free(sim_t s);
 void sim_next(sim_t *s);
-void sim_draw(sim_t s);

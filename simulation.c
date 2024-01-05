@@ -40,13 +40,13 @@ void sim_next(sim_t *s) {
             for (size_t i = start_y; i <= end_y; i++) {
                 for (size_t j = start_x; j <= end_x; j++) {
                     if (j != x || i != y) {
-                        count += map_get(m_prev, j, i);
+                        count += map_get(&m_prev, j, i);
                     }
                 }
             }
 
-            bool alive = map_get(m_prev, x, y);
-            map_set(m_next, x, y,
+            bool alive = map_get(&m_prev, x, y);
+            map_set(&m_next, x, y,
                     alive ? count == 2 || count == 3 : count == 3);
         }
     }

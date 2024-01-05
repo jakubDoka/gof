@@ -96,6 +96,7 @@ char *decode_world_name(size_t *len, const char *cursor[*len]) {
     }
 
     for (size_t i = 0; i < name_len; i++) {
+        printf("Invalid character in name: '%c'\n", cursor[0][i]);
         if (!is_valid_world_name_char(cursor[0][i])) {
             report_error("Invalid character in name");
             return NULL;
@@ -223,7 +224,7 @@ void *handle_client(void *arg) {
         pthread_mutex_unlock(&fs_mutex);
         if (len == -1) {
             len = 1 + 4 + strlen(reported_error);
-            out_buffer = realloc(in_buffer, len);
+            out_buffer = realloc(out_buffer, len);
             out_buffer[0] = (char)(PROTO_ERROR);
             *((uint32_t *)(out_buffer + 1)) = htonl(len - 5);
             memcpy(out_buffer + 5, reported_error, len - 5);

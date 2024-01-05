@@ -26,10 +26,10 @@ int main(int n, char **args) {
     }
 
     map_t m = map_new(10, 10);
-    map_clear(m);
+    map_clear(&m);
 
     for (size_t i = 0; i < 10; i++) {
-        map_set(m, i, i, true);
+        map_set(&m, i, i, true);
     }
 
     request_t request = {
@@ -56,8 +56,8 @@ int main(int n, char **args) {
     assert(response.data.load_world.world.height == 10);
     for (size_t i = 0; i < 10; i++) {
         for (size_t j = 0; j < 10; j++) {
-            assert(map_get(response.data.load_world.world, i, j) ==
-                   map_get(m, i, j));
+            assert(map_get(&response.data.load_world.world, i, j) ==
+                   map_get(&m, i, j));
         }
     }
     response_free(response);
