@@ -191,6 +191,7 @@ map_t map_manipulation(map_t *m) {
         case 'g':
         case 'G':
             *m = map_server_get(m);
+            x = y = 0;
             break;
         case 'u':
         case 'U':
@@ -222,22 +223,22 @@ map_t map_manipulation(map_t *m) {
         case 'w':
         case 'W':
         case KEY_UP:
-            y -= y == 0 ? 0 : 1;
+            y -= y != 0;
             break;
         case 'a':
         case 'A':
         case KEY_LEFT:
-            x -= x == 0 ? 0 : 1;
+            x -= x != 0;
             break;
         case 's':
         case 'S':
         case KEY_DOWN:
-            y += y == m->height - 1 ? 0 : 1;
+            y += y != m->height - 1;
             break;
         case 'd':
         case 'D':
         case KEY_RIGHT:
-            x += x == m->width - 1 ? 0 : 1;
+            x += x != m->width - 1;
             break;
         case ' ':
             map_set(m, x, y, !map_get(m, x, y));
@@ -289,6 +290,8 @@ void sim_run(sim_t *s) {
             m = map_manipulation(&m);
             *s = sim_creation(m, 0);
             timeout(0);
+            is_running = true;
+            is_reverse = false;
             break;
         }
 
