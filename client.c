@@ -8,7 +8,7 @@
 
 #define MAX_WIDTH 100
 #define MAX_HEIGHT 50
-#define SERVER_IP "127.0.0.1"
+#define SERVER_IP "158.193.128.160"
 #define SERVER_PORT 8080
 
 void map_draw(map_t *m) {

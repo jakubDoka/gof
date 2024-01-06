@@ -1,4 +1,5 @@
 ncurses
 *.o
 *.hcg
-client server
+*.world
+client server test

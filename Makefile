@@ -1,6 +1,5 @@
 CC = gcc
 CFLAGS = -Wall -g -std=c99
-NCURSES_LIB = ncurses/lib/libncurses.a
 
 all: client server test
 
@@ -11,7 +10,7 @@ server: server.o map.o protocol.o
 	$(CC) $(CFLAGS) server.o map.o simulation.o protocol.o -o server
 
 client: client.o map.o simulation.o protocol.o net_client.o
-	$(CC) $(CFLAGS) client.o map.o simulation.o protocol.o net_client.o $(NCURSES_LIB) -o client
+	$(CC) $(CFLAGS) client.o map.o simulation.o protocol.o net_client.o -o client -lncurses
 
 client.o: client.c map.h simulation.h
 	$(CC) $(CFLAGS) -c client.c -o client.o
