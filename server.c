@@ -77,6 +77,8 @@ size_t handle_list_worlds(char *out[]) {
         cursor += len;
     }
 
+    closedir(dir);
+
     return len;
 }
 
@@ -163,7 +165,7 @@ size_t handle_load_world(size_t in_len, const char in[in_len], char *out[]) {
 
     printf("Loading world of size %zu\n", len);
 
-    *out = realloc(*out, len);
+    *out = realloc(*out, len + 1);
     **out = (char)(PROTO_LOAD_WORLD);
     if (fread(*out + 1, sizeof(char), len, file) != len) {
         report_ise("Error reading file");
@@ -245,6 +247,7 @@ void *handle_client(void *arg) {
 
     close(socket);
     free(in_buffer);
+    free(out_buffer);
 
     return NULL;
 }
@@ -299,6 +302,7 @@ int main(int n, char **args) {
                                 &addrlen)) >= 0) {
         pthread_t thread;
         pthread_create(&thread, NULL, &handle_client, (void *)(long)new_socket);
+        pthread_detach(thread);
     }
 
     close(server_fd);
