@@ -2,4 +2,6 @@ ncurses
 *.o
 *.hcg
 *.world
-client server test
+client
+server
+test
