@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include "protocol.h"
 #include "pthread.h"
+#include "signal.h"
 #include <bits/pthreadtypes.h>
 #include <dirent.h>
 #include <netinet/in.h>
@@ -252,6 +253,16 @@ void *handle_client(void *arg) {
     return NULL;
 }
 
+static int server_fd = -1;
+void handle_sigint(int sig) {
+    if (server_fd == -1) {
+        return;
+    }
+
+    printf("Shutting down server...\n");
+    close(server_fd);
+}
+
 int main(int n, char **args) {
     if (n != 2) {
         printf("Usage: %s <port>\n", args[0]);
@@ -259,7 +270,6 @@ int main(int n, char **args) {
     }
 
     int port = atoi(args[1]);
-
     if (port <= 0) {
         printf("Invalid port: %s\n", args[1]);
         return 1;
@@ -269,7 +279,6 @@ int main(int n, char **args) {
 
     pthread_mutex_init(&fs_mutex, NULL);
 
-    int server_fd;
     struct sockaddr_in address;
     int opt = 1;
     socklen_t addrlen = sizeof(address);
@@ -297,6 +306,8 @@ int main(int n, char **args) {
         return 1;
     }
 
+    signal(SIGINT, handle_sigint);
+
     int new_socket;
     while ((new_socket = accept(server_fd, (struct sockaddr *)&address,
                                 &addrlen)) >= 0) {
@@ -306,5 +317,6 @@ int main(int n, char **args) {
     }
 
     close(server_fd);
+
     return 0;
 }
