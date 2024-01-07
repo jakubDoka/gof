@@ -84,6 +84,7 @@ map_t map_load(char *fn) {
     }
 
     map_t m = map_new(width, height);
+    map_clear(&m);
 
     for (size_t i = 0; i < height; i++) {
         for (size_t j = 0; j < width; j++) {
