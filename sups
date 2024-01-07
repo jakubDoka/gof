@@ -1,12 +1,12 @@
 {
-   <insert_a_suppression_name_here>
+   ncurses_initscr
    Memcheck:Leak
    ...
    fun:initscr
    fun:main
 }
 {
-   <insert_a_suppression_name_here>
+   ncurses_wgetnstr
    Memcheck:Leak
    ...
    fun:wgetnstr
@@ -14,24 +14,41 @@
    fun:main
 }
 {
-   <insert_a_suppression_name_here>
+   ncurses_nc_keypad
    Memcheck:Leak
    ...
    fun:_nc_keypad
    fun:main
 }
 {
-   <insert_a_suppression_name_here>
+   ncurses_resize_term_sp
    Memcheck:Leak
    ...
    fun:resize_term_sp
    fun:main
 }
 {
-   <insert_a_suppression_name_here>
+   ncurses_printw (main)
    Memcheck:Leak
    ...
    fun:printw
    fun:map_creation
+   fun:main
+}
+{
+   ncurses_printw (map_draw)
+   Memcheck:Leak
+   ...
+   fun:printw
+   fun:map_draw
+   fun:map_manipulation
+   fun:main
+}
+{
+   ncurses_wgetch
+   Memcheck:Leak
+   ...
+   fun:wgetch
+   fun:map_manipulation
    fun:main
 }
