@@ -8,7 +8,7 @@
 
 #define MAX_WIDTH 100
 #define MAX_HEIGHT 50
-#define SERVER_IP "158.193.128.160"
+#define SERVER_IP "127.0.0.1" //"158.193.128.160"
 #define SERVER_PORT 8080
 
 void map_draw(map_t *m) {
@@ -91,9 +91,10 @@ void map_server_send(map_t *m) {
 }
 
 map_t map_server_get(map_t *m) {
+    printf("Loading worlds from server...\n");
+
     client_t c;
     client_new_result_t result_new = client_new(&c, SERVER_IP, SERVER_PORT);
-    response_t res;
 
     clear();
     if (result_new != CLIENT_NEW_OK) {
@@ -104,7 +105,8 @@ map_t map_server_get(map_t *m) {
     }
 
     request_t r = {PROTO_LIST_WORLDS, {.list_worlds = {}}};
-    client_send_result_t result_send = client_send(&c, r, &res);
+    response_t list_worlds_res;
+    client_send_result_t result_send = client_send(&c, r, &list_worlds_res);
     if (result_send != CLIENT_SEND_OK) {
         printw("%s", CLIENT_SEND_RESULT_STR[result_send]);
         refresh();
@@ -112,8 +114,19 @@ map_t map_server_get(map_t *m) {
         return *m;
     }
 
-    for (size_t i = 0; i < res.data.list_worlds.count; i++) {
-        printw("%s\n", res.data.list_worlds.names[i]);
+    printf("Worlds on server:\n");
+
+    if (list_worlds_res.data.list_worlds.count == 0) {
+        printw("No worlds on server");
+        response_free(list_worlds_res);
+        client_free(c);
+        refresh();
+        confirm_loop();
+        return *m;
+    }
+
+    for (size_t i = 0; i < list_worlds_res.data.list_worlds.count; i++) {
+        printw("%s\n", list_worlds_res.data.list_worlds.names[i]);
     }
 
     int ch = '\0';
@@ -132,15 +145,17 @@ map_t map_server_get(map_t *m) {
         case 's':
         case 'S':
         case KEY_DOWN:
-            y += y != res.data.list_worlds.count - 1;
+            y += y != list_worlds_res.data.list_worlds.count - 1;
             break;
         }
     }
 
-    r = (request_t){PROTO_LOAD_WORLD,
-                    {.load_world = {res.data.list_worlds.names[y]}}};
-    result_send = client_send(&c, r, &res);
-    response_free(res);
+    r = (request_t){
+        PROTO_LOAD_WORLD,
+        {.load_world = {list_worlds_res.data.list_worlds.names[y]}}};
+    response_t load_world_res;
+    result_send = client_send(&c, r, &load_world_res);
+    response_free(list_worlds_res);
 
     clear();
     if (result_send != CLIENT_SEND_OK) {
@@ -151,9 +166,9 @@ map_t map_server_get(map_t *m) {
     }
 
     map_free(*m);
-    *m = res.data.load_world.world;
+    *m = load_world_res.data.load_world.world;
 
-    response_free(res);
+    response_free(load_world_res);
     client_free(c);
     return *m;
 }
