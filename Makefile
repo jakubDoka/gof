@@ -7,7 +7,7 @@ test: test.o map.o protocol.o net_client.o
 	$(CC) $(CFLAGS) test.o map.o protocol.o net_client.o -o test
 
 server: server.o map.o protocol.o
-	$(CC) $(CFLAGS) server.o map.o simulation.o protocol.o -o server
+	$(CC) $(CFLAGS) server.o map.o  protocol.o -o server -pthread
 
 client: client.o map.o simulation.o protocol.o net_client.o
 	$(CC) $(CFLAGS) client.o map.o simulation.o protocol.o net_client.o -o client -lncurses
